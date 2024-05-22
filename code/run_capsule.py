@@ -60,6 +60,7 @@ if __name__ == "__main__":
 
     # get blocks/experiments and streams info
     spikeglx_folders = [p for p in data_folder.iterdir() if p.is_dir()]
+    print(spikeglx_folders)
     assert len(spikeglx_folders) == 1, "Attach one SpikeGLX folder at a time"
     spikeglx_folder = spikeglx_folders[0]
     session_name = spikeglx_folder.name
