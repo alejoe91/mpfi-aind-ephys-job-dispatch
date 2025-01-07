@@ -3,5 +3,5 @@ FROM continuumio/miniconda3:23.9.0-0
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN pip install -U --no-cache-dir \
-    spikeinterface[full]==0.100.0 \
-    wavpack-numcodecs==0.1.5
+    spikeinterface[full]==0.101.2 \
+    wavpack-numcodecs==0.2.1
