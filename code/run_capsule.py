@@ -4,10 +4,12 @@ warnings.filterwarnings("ignore")
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # GENERAL IMPORTS
+import sys
 import argparse
 import numpy as np
 from pathlib import Path
 import json
+import logging
 
 
 # SPIKEINTERFACE
@@ -17,6 +19,7 @@ import probeinterface as pi
 
 from spikeinterface.core.core_tools import SIJsonEncoder
 
+logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
 
 data_folder = Path("../data")
 results_folder = Path("../results")
@@ -61,11 +64,11 @@ if __name__ == "__main__":
     DEBUG = args.debug or args.static_debug.lower() == "true"
     DEBUG_DURATION = float(args.static_debug_duration or args.debug_duration)
 
-    print(f"Running job dispatcher with the following parameters:")
-    print(f"\tCONCATENATE RECORDINGS: {CONCAT}")
-    print(f"\tSPLIT GROUPS: {SPLIT_GROUPS}")
-    print(f"\tDEBUG: {DEBUG}")
-    print(f"\tDEBUG DURATION: {DEBUG_DURATION}")
+    logging.info(f"Running job dispatcher with the following parameters:")
+    logging.info(f"\tCONCATENATE RECORDINGS: {CONCAT}")
+    logging.info(f"\tSPLIT GROUPS: {SPLIT_GROUPS}")
+    logging.info(f"\tDEBUG: {DEBUG}")
+    logging.info(f"\tDEBUG DURATION: {DEBUG_DURATION}")
 
     # THIS IS THE MAIN PART OF THE SCRIPT
     #
@@ -88,7 +91,7 @@ if __name__ == "__main__":
 
     # get blocks/experiments and streams info
     spikeglx_folders = [p for p in data_folder.iterdir() if p.is_dir()]
-    print(spikeglx_folders)
+    logging.info(spikeglx_folders)
     assert len(spikeglx_folders) == 1, "Attach one SpikeGLX folder at a time"
     spikeglx_folder = spikeglx_folders[0]
     session_name = spikeglx_folder.name
@@ -98,7 +101,7 @@ if __name__ == "__main__":
     num_blocks = 1
     block_index = 0
 
-    print(f"\tNum. Blocks {num_blocks} - Num. streams: {len(stream_names)}")
+    logging.info(f"\tNum. Blocks {num_blocks} - Num. streams: {len(stream_names)}")
     recording_dict = {}
     for stream_name in stream_names:
         if "lf" in stream_name:
@@ -109,7 +112,7 @@ if __name__ == "__main__":
         if "nidq" in stream_name:
             probe_json_file = spikeglx_folder / "probe_nidq.json"
             probegroup = pi.read_probeinterface(probe_json_file)
-            print(f"\t\tSetting probe file for {stream_name}")
+            logging.info(f"\t\tSetting probe file for {stream_name}")
             recording = recording.set_probegroup(probegroup, group_mode="by_shank")
 
         recording_dict[(session_name, recording_name)] = {}
@@ -122,11 +125,11 @@ if __name__ == "__main__":
                 recording_lf = se.read_spikeglx(spikeglx_folder, stream_name=stream_name_lf)
                 recording_dict[(session_name, recording_name)]["lfp"] = recording_lf
             except:
-                print(f"\t\tNo LFP stream found for {stream_name}")
+                logging.info(f"\t\tNo LFP stream found for {stream_name}")
 
     # populate job dict list
     job_dict_list = []
-    print("Recording to be processed in parallel:")
+    logging.info("Recording to be processed in parallel:")
     for session_recording_name in recording_dict:
         session_name, recording_name = session_recording_name
         recording = recording_dict[session_recording_name]["raw"]
@@ -157,15 +160,15 @@ if __name__ == "__main__":
                 num_negative_times = np.sum(times_diff < 0)
 
                 if num_negative_times > 0:
-                    print(f"\t\t{recording_name} - Times not monotonically increasing.")
+                    logging.info(f"\t\t{recording_name} - Times not monotonically increasing.")
                     if num_negative_times > MAX_NUM_NEGATIVE_TIMESTAMPS:
-                        print(
+                        logging.info(
                             f"\t\t{recording_name} - Skipping timestamps for too many negative timestamps: {num_negative_times}"
                         )
                         skip_times = True
                         break
                     if np.max(np.abs(times_diff)) * 1000 > MAX_TIMESTAMPS_DEVIATION_MS:
-                        print(
+                        logging.info(
                             f"\t\t{recording_name} - Skipping timesstamps for too large deviation: {np.max(np.abs(times_diff))} ms"
                         )
                         skip_times = True
@@ -216,7 +219,7 @@ if __name__ == "__main__":
                             recursive=True, relative_to=data_folder
                         )
                         rec_str += f" (with LFP stream)"
-                    print(rec_str)
+                    logging.info(rec_str)
                     job_dict_list.append(job_dict)
             else:
                 job_dict = dict(
@@ -231,7 +234,7 @@ if __name__ == "__main__":
                 if HAS_LFP:
                     job_dict["recording_lfp_dict"] = recording_lfp.to_dict(recursive=True, relative_to=data_folder)
                     rec_str += f" (with LFP stream)"
-                print(rec_str)
+                logging.info(rec_str)
                 job_dict_list.append(job_dict)
 
     if not results_folder.is_dir():
@@ -240,4 +243,4 @@ if __name__ == "__main__":
     for i, job_dict in enumerate(job_dict_list):
         with open(results_folder / f"job_{i}.json", "w") as f:
             json.dump(job_dict, f, indent=4, cls=SIJsonEncoder)
-    print(f"Generated {len(job_dict_list)} job config files")
+    logging.info(f"Generated {len(job_dict_list)} job config files")
